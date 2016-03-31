@@ -1,0 +1,12 @@
+%% -*- mode: erlang -*-
+{application, mqtt_worker,
+ [
+  {description, "VMQ_MZBench is a MZBench MQTT worker"},
+  {vsn, "0.0.1"},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {env, []}
+ %%{mod, {mqtt_worker, []}}
+ ]}.
