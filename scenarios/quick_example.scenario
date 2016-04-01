@@ -1,0 +1,40 @@
+%% Here's a stupid, quick example to give you an idea.
+%% Paste this to the scenario field in MZBench web frontend and
+%% run it.
+
+[
+{make_install, [{git, "https://github.com/erlio/vmq_mzbench.git"},
+		{exclude, "deps"}]},
+
+{pool, [{size, {numvar, "publisher-number", 100}},
+    {worker_type, mqtt_worker},
+    {worker_start, {linear, {{numvar, "publisher-rps", 20}, rps}}}
+], 
+[
+     {connect, [{t, host, "192.168.1.10"},
+                {t, port, 1883},
+                {t, client, {random_client_id, 18}},
+                {t, clean_session, true},
+                {t, keepalive_interval, 60}]},
+{wait, {5, sec}},
+
+{loop, [
+       {time, {30, sec}},
+       {rate, {2, rps}}
+],
+[
+{publish, "testtopic", <<"hello from vmq_mzbench">>, 0}
+]}]},
+
+{pool, [{size, 1},
+{worker_type, mqtt_worker}], [
+{connect, [{t, host, "192.168.1.10"},
+	{t, port, 1883},
+	{t, client, "sub2"},
+	{t, clean_session, true},
+	{t, keepalive_interval, 60}
+]},
+{wait, {1, sec}},
+{subscribe, "testtopic", 0}
+]}
+].
