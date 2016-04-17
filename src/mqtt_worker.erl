@@ -8,7 +8,9 @@
     connect/3,
     publish/5,
     subscribe/4,
-    random_client_id/3]).
+    random_client_id/3,
+    subscribe_to_self/4,
+    publish_to_self/5]).
 
 % gen_mqtt stats callback
 -export([stats/2]).
@@ -29,7 +31,7 @@
     on_unsubscribe/2,
     on_publish/3]).
 
--record(state, {mqtt_fsm}).
+-record(state, {mqtt_fsm, client}).
 
 -behaviour(gen_emqtt).
 
@@ -73,7 +75,7 @@ metrics() ->
             {graph, #{title => "Total published messages", metrics => [{"mqtt.message.published.total", counter}]}},
             {graph, #{title => "Total consumed messages", metrics => [{"mqtt.message.consumed.total", counter}]}}]},
 
-        {group, "MQTT Consumer", [
+        {group, "MQTT Consumers", [
             {graph, #{title => "Suback Latency", metrics => [{"mqtt.consumer.suback.latency", histogram}]}},
             {graph, #{title => "Unsuback Latency", metrics => [{"mqtt.consumer.unsuback.latency", histogram}]}},
             {graph, #{title => "Consumer Total", metrics => [{"mqtt.consumer.current_total", counter}]}},
@@ -140,8 +142,9 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------
 
 connect(State, _Meta, ConnectOpts) ->
+    ClientId = proplists:get_value(client, ConnectOpts),
     {ok, SessionPid} = gen_emqtt:start_link(?MODULE, [], [{info_fun, {fun stats/2, maps:new()}}|ConnectOpts]),
-    {nil, State#state{mqtt_fsm=SessionPid}}.
+    {nil, State#state{mqtt_fsm=SessionPid, client=ClientId}}.
 
 publish(#state{mqtt_fsm = SessionPid} = State, _Meta, Topic, Payload, QoS) ->
     case vmq_topic:validate_topic(publish, list_to_binary(Topic)) of
@@ -164,6 +167,13 @@ subscribe(#state{mqtt_fsm = SessionPid} = State, _Meta, Topic, Qos) ->
             error_logger:warning_msg("Can't validate topic conf ~p due to ~p~n", [Topic, Reason]),
             {nil, State}
     end.
+
+% we need this, because MZBench DSL does not support variables
+subscribe_to_self(#state{client = ClientId} = State, _Meta, TopicPrefix, Qos) ->
+    subscribe(State, _Meta, TopicPrefix ++ ClientId, Qos).
+
+publish_to_self(#state{client = ClientId} = State, _Meta, TopicPrefix, Payload, Qos) ->
+    publish(State, _Meta, TopicPrefix ++ ClientId, Payload, Qos).
 
 %% ------------------------------------------------
 %% Gen_MQTT Info Callbacks
