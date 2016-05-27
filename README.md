@@ -9,3 +9,5 @@ To use vmq_mzbench, you have to do 2 things:
 2. Develop scenario files and feed them to MZBench (http://machinezone.github.io/mzbench/scenarios/)
 
 The scenario file will fetch vmq_mzbench.
+
+Preliminary documentation is available here: https://vernemq.com/docs/vmq_mzbench/
