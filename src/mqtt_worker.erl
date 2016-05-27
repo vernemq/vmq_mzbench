@@ -6,8 +6,10 @@
 % MZBench statement commands
 -export([
     connect/3,
+    disconnect/2,
     publish/5,
     subscribe/4,
+    unsubscribe/3,
     random_client_id/3,
     subscribe_to_self/4,
     publish_to_self/5]).
@@ -16,7 +18,6 @@
 -export([stats/2]).
 
 % gen_mqtt callbacks
-
 -export([
     init/1,
     handle_call/3,
@@ -39,6 +40,8 @@ initial_state() ->   % init the MZbench worker
     #state{}.
 
 init(State) ->  % init gen_mqtt
+    {A,B,C} = os:timestamp(),
+    random:seed(A,B,C),
     {ok, State}.
 
 metrics() ->
@@ -47,9 +50,6 @@ metrics() ->
             {graph, #{title => "Pub to Sub Latency (piggybacked T1)",
                 metrics => [{"mqtt.message.pub_to_sub.latency", histogram}]}}]
         },
-%%        {group, "MQTT Publishers QoS 0", [
-%%
-%%            ]},
         {group, "MQTT Publishers QoS 1", [
             % QoS 1 Publisher flow
             {graph, #{title => "QoS 1: Publish to Puback latency", metrics => [{"mqtt.publisher.qos1.puback.latency", histogram}]}},
@@ -79,6 +79,8 @@ metrics() ->
             {graph, #{title => "Suback Latency", metrics => [{"mqtt.consumer.suback.latency", histogram}]}},
             {graph, #{title => "Unsuback Latency", metrics => [{"mqtt.consumer.unsuback.latency", histogram}]}},
             {graph, #{title => "Consumer Total", metrics => [{"mqtt.consumer.current_total", counter}]}},
+            {graph, #{title => "Consumer Suback Errors", metrics => [{"mqtt.consumer.suback.errors", counter}]}},
+
 
             % QoS 1 consumer flow
             {graph, #{title => "QoS 1: Publish_in to Puback_out internal latency",
@@ -109,8 +111,13 @@ on_disconnect(State) ->
     mzb_metrics:notify({"mqtt.connection.current_total", counter}, -1),
     {ok, State}.
 
-on_subscribe(_Topics, State) ->
-    mzb_metrics:notify({"mqtt.consumer.current_total", counter}, 1),
+on_subscribe(Topics, State) ->
+    case Topics of
+        {error, _T, _QoSTable} ->
+            mzb_metrics:notify({"mqtt.consumer.suback.errors", counter}, 1);
+    _ ->
+    mzb_metrics:notify({"mqtt.consumer.current_total", counter}, 1)
+    end,
     {ok, State}.
 
 on_unsubscribe(_Topics, State) ->
@@ -131,6 +138,7 @@ handle_info(_Req, State) ->
     {noreply, State}.
 
 terminate(_Reason, _State) ->
+    mzb_metrics:notify({"mqtt.connection.current_total", counter}, -1),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
@@ -145,6 +153,10 @@ connect(State, _Meta, ConnectOpts) ->
     ClientId = proplists:get_value(client, ConnectOpts),
     {ok, SessionPid} = gen_emqtt:start_link(?MODULE, [], [{info_fun, {fun stats/2, maps:new()}}|ConnectOpts]),
     {nil, State#state{mqtt_fsm=SessionPid, client=ClientId}}.
+
+disconnect(#state{mqtt_fsm=SessionPid} = State, _Meta) ->
+    gen_emqtt:disconnect(SessionPid),
+    {nil, State}.
 
 publish(#state{mqtt_fsm = SessionPid} = State, _Meta, Topic, Payload, QoS) ->
     case vmq_topic:validate_topic(publish, list_to_binary(Topic)) of
@@ -168,7 +180,10 @@ subscribe(#state{mqtt_fsm = SessionPid} = State, _Meta, Topic, Qos) ->
             {nil, State}
     end.
 
-% we need this, because MZBench DSL does not support variables
+unsubscribe(#state{mqtt_fsm = SessionPid} = State, _Meta, Topics) ->
+    gen_emqtt:unsubscribe(SessionPid, Topics),
+    {nil, State}.
+
 subscribe_to_self(#state{client = ClientId} = State, _Meta, TopicPrefix, Qos) ->
     subscribe(State, _Meta, TopicPrefix ++ ClientId, Qos).
 
@@ -258,10 +273,8 @@ diff(MsgId, State, Metric, MetricType) ->
     NewState = maps:remove(MsgId, State),
     NewState.
 
-
 random_client_id(State, _Meta, N) ->
     {randlist(N), State}.
-
 
 randlist(N) ->
     randlist(N, []).
