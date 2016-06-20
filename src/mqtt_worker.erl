@@ -12,7 +12,8 @@
     unsubscribe/3,
     random_client_id/3,
     subscribe_to_self/4,
-    publish_to_self/5]).
+    publish_to_self/5,
+    client/2]).
 
 % gen_mqtt stats callback
 -export([stats/2]).
@@ -47,8 +48,9 @@ init(State) ->  % init gen_mqtt
 metrics() ->
     [
         {group, "MQTT Pub to Sub Latency", [
-            {graph, #{title => "Pub to Sub Latency (piggybacked T1)",
-                metrics => [{"mqtt.message.pub_to_sub.latency", histogram}]}}]
+            {graph, #{title => "Pub to Sub Latency (QoS 0)", metrics => [{"mqtt.message.pub_to_sub.latency", histogram}]}},
+            {graph, #{title => "Pub to Sub Latency (QoS 1)", metrics => [{"mqtt.message.pub_to_sub.latency.qos1", histogram}]}},
+            {graph, #{title => "Pub to Sub Latency (QoS 2)", metrics => [{"mqtt.message.pub_to_sub.latency.qos2", histogram}]}}]
         },
         {group, "MQTT Publishers QoS 1", [
             % QoS 1 Publisher flow
@@ -87,11 +89,11 @@ metrics() ->
                 metrics => [{"mqtt.consumer.qos1.publish_in_to_puback_out.internal_latency", histogram}]}},
 
             % QoS 2 consumer flow
-            {graph, #{title => "Qos 2: Publish_in to Pubrec_out internal latency",
+            {graph, #{title => "QoS 2: Publish_in to Pubrec_out internal latency",
                 metrics => [{"mqtt.consumer.qos2.publish_in_to_pubrec_out.internal_latency", histogram}]}},
-            {graph, #{title => "Qos 2: Pubrec_out to Pubrel_in latency",
+            {graph, #{title => "QoS 2: Pubrec_out to Pubrel_in latency",
                 metrics => [{"mqtt.consumer.qos2.pubrec_out_to_pubrel_in.latency", histogram}]}},
-            {graph, #{title => "Pubrel_in to Pubcompout internal latency", metrics =>
+            {graph, #{title => "QoS 2: Pubrel_in to Pubcomp_out internal latency", metrics =>
             [{"mqtt.consumer.qos2.pubrel_in_to_pubcomp_out.internal_latency", histogram}]}}
 
         ]}].
@@ -201,20 +203,31 @@ stats({connect_out, ClientId}, State) -> % log connection attempt
 stats({connack_in, ClientId}, State) ->
     diff(ClientId, State, "mqtt.connection.connack.latency", histogram);
 stats({reconnect, _ClientId}, State) ->
-    mbz_metrics:notify({"mqtt.connection.reconnects", counter}),
+    mzb_metrics:notify({"mqtt.connection.reconnects", counter}),
     State;
-stats({publish_out, MsgId}, State)  ->
-    maps:put(MsgId, os:timestamp(), State); % QoS 0 ?
-stats({publish_in, MsgId, Payload}, State) ->
+stats({publish_out, MsgId, QoS}, State)  ->
+    case QoS of
+        0 -> ok;
+        1 -> mzb_metrics:notify({"mqtt.publisher.qos1.puback.waiting"}, 1);
+        2 -> mzb_metrics:notify({"mqtt.publisher.qos2.pubrec.waiting"}, 1)
+    end,
+    maps:put(MsgId, os:timestamp(), State);
+stats({publish_in, MsgId, Payload, QoS}, State) ->
     T2 = os:timestamp(),
     {T1, _OldPayload} = binary_to_term(Payload),
-    mzb_metrics:notify({"mqtt.message.pub_to_sub.latency", histogram}, timer:now_diff(T2,T1)),
+    Diff = timer:now_diff(T2, T1),
+    case QoS of
+        0 -> mzb_metrics:notify({"mqtt.message.pub_to_sub.latency", histogram}, Diff);
+        1 -> mzb_metrics:notify({"mqtt.message.pub_to_sub.latency.qos1", histogram}, Diff);
+        2 -> mzb_metrics:notify({"mqtt.message.pub_to_sub.latency.qos2", histogram}, Diff)
+    end,
     maps:put(MsgId, T2, State);
 stats({puback_in, MsgId}, State) ->
     T1 = maps:get(MsgId, State),
     T2 = os:timestamp(),
     mzb_metrics:notify({"mqtt.publisher.qos1.puback.latency", histogram}, timer:now_diff(T2, T1)),
     mzb_metrics:notify({"mqtt.publisher.qos1.puback.in.total", counter}, 1),
+    mzb_metrics:notify({"mqtt.publisher.qos1.puback.waiting", counter}, -1),
     NewState = maps:remove(MsgId, State),
     NewState;
 stats({puback_out, MsgId}, State) ->
@@ -233,6 +246,7 @@ stats({pubrec_in, MsgId}, State) ->
     T2 = os:timestamp(),
     T1 = maps:get(MsgId, State),
     mzb_metrics:notify({"mqtt.publisher.qos2.pub_out_to_pubrec_in.latency", histogram}, timer:now_diff(T2, T1)),
+    mzb_metrics:notify({"mqtt.publisher.qos2.pubrec.in.total"}, 1),
     NewState = maps:update(MsgId, T2, State),
     NewState;
 stats({pubrec_out, MsgId}, State) ->
@@ -274,12 +288,14 @@ diff(MsgId, State, Metric, MetricType) ->
     NewState.
 
 random_client_id(State, _Meta, N) ->
-    {randlist(N), State}.
+  {randlist(N) ++ pid_to_list(self()), State}.
 
 randlist(N) ->
     randlist(N, []).
 randlist(0, Acc) ->
     Acc;
 randlist(N, Acc) ->
-    randlist(N - 1, [random:uniform(26) + 48 | Acc]).
+    randlist(N - 1, [random:uniform(26) + 96 | Acc]).
 
+client(#state{client = Client}=State, _Meta) ->
+    {Client, State}.
