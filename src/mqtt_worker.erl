@@ -8,12 +8,15 @@
     connect/3,
     disconnect/2,
     publish/5,
+    publish/6,
     subscribe/4,
     unsubscribe/3,
     random_client_id/3,
     subscribe_to_self/4,
     publish_to_self/5,
-    client/2]).
+    client/2,
+    worker_id/2,
+    fixed_client_id/4]).
 
 % gen_mqtt stats callback
 -export([stats/2]).
@@ -160,11 +163,14 @@ disconnect(#state{mqtt_fsm=SessionPid} = State, _Meta) ->
     gen_emqtt:disconnect(SessionPid),
     {nil, State}.
 
-publish(#state{mqtt_fsm = SessionPid} = State, _Meta, Topic, Payload, QoS) ->
+publish(State, _Meta, Topic, Payload, QoS) ->
+    publish(State, _Meta, Topic, Payload, QoS, false).
+
+publish(#state{mqtt_fsm = SessionPid} = State, _Meta, Topic, Payload, QoS, Retain) ->
     case vmq_topic:validate_topic(publish, list_to_binary(Topic)) of
         {ok, TTopic} ->
                     Payload1 = term_to_binary({os:timestamp(), Payload}),
-                    gen_emqtt:publish(SessionPid, TTopic, Payload1, QoS),
+                    gen_emqtt:publish(SessionPid, TTopic, Payload1, QoS, Retain),
             mzb_metrics:notify({"mqtt.message.published.total", counter}, 1),
             {nil, State};
         {error, Reason} ->
@@ -191,6 +197,17 @@ subscribe_to_self(#state{client = ClientId} = State, _Meta, TopicPrefix, Qos) ->
 
 publish_to_self(#state{client = ClientId} = State, _Meta, TopicPrefix, Payload, Qos) ->
     publish(State, _Meta, TopicPrefix ++ ClientId, Payload, Qos).
+
+client(#state{client = Client}=State, _Meta) ->
+    {Client, State}.
+
+worker_id(State, Meta) ->
+    ID = proplists:get_value(worker_id, Meta),
+    {ID, State}.
+
+fixed_client_id(State, _Meta, Name, Id) -> {[Name, "-", integer_to_list(Id)], State}.
+random_client_id(State, _Meta, N) ->
+    {randlist(N) ++ pid_to_list(self()), State}.
 
 %% ------------------------------------------------
 %% Gen_MQTT Info Callbacks
@@ -287,9 +304,6 @@ diff(MsgId, State, Metric, MetricType) ->
     NewState = maps:remove(MsgId, State),
     NewState.
 
-random_client_id(State, _Meta, N) ->
-  {randlist(N) ++ pid_to_list(self()), State}.
-
 randlist(N) ->
     randlist(N, []).
 randlist(0, Acc) ->
@@ -297,5 +311,4 @@ randlist(0, Acc) ->
 randlist(N, Acc) ->
     randlist(N - 1, [random:uniform(26) + 96 | Acc]).
 
-client(#state{client = Client}=State, _Meta) ->
-    {Client, State}.
+
