@@ -1,0 +1,50 @@
+#!benchDL
+
+
+#######
+# Broadcast Scenario:
+# 1k subscribers reading from the same topic "fixed/broadcast/topic"
+# 1 publisher sending 1 msg/s to topic "fixed/broadcast/topic"
+# Overall Msg rate: 1k msg/s
+# Message Size: 150 random bytes
+# Runtime: 5 min
+#######
+
+make_install(git = "https://github.com/erlio/vmq_mzbench.git",
+             branch = "master")
+
+pool(size = 1000,
+     worker_type = mqtt_worker,
+     woker_start = poisson(1000 rps)):
+         
+            connect([t(host, "127.0.0.1"),
+                    t(port,1883),
+                    t(client,fixed_client_id("subscriber_pool1", worker_id())),
+                    t(clean_session,true),
+                    t(keepalive_interval,60),
+                    t(proto_version,4), t(reconnect_timeout,4)
+                    ])
+                
+            set_signal(subscribe1, 1)
+            wait_signal(subscribe1, 1000)
+            wait(10 sec)
+            subscribe("fixed/broadcast/topic", 0)
+
+
+pool(size = 1,
+     worker_type = mqtt_worker):
+         
+            connect([t(host, "127.0.0.1"),
+                    t(port,1883),
+                    t(client,fixed_client_id("publisher_pool1", worker_id())),
+                    t(clean_session,true),
+                    t(keepalive_interval,60),
+                    t(proto_version,4), t(reconnect_timeout,4)
+                    ])
+                    
+            set_signal(connect1, 1)
+            wait_signal(connect1, 1)
+            wait(4 sec)
+            loop(time = 5 min, rate = 1 rps):
+                publish("fixed/broadcast/topic", random_binary(150), 0)
+            disconnect()
