@@ -11,3 +11,5 @@ To use vmq_mzbench, you have to do 2 things:
 The scenario file will fetch vmq_mzbench.
 
 Preliminary documentation is available here: https://vernemq.com/docs/vmq_mzbench/
+
+Find a Blog post to get you started on the VerneMQ blog: https://vernemq.com/blog/2016/08/26/loadtesting-mqtt-brokers.html
