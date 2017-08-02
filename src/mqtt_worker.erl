@@ -220,7 +220,7 @@ stats({connect_out, ClientId}, State) -> % log connection attempt
 stats({connack_in, ClientId}, State) ->
     diff(ClientId, State, "mqtt.connection.connack.latency", histogram);
 stats({reconnect, _ClientId}, State) ->
-    mzb_metrics:notify({"mqtt.connection.reconnects", counter}),
+    mzb_metrics:notify({"mqtt.connection.reconnects", counter}, 1),
     State;
 stats({publish_out, MsgId, QoS}, State)  ->
     case QoS of
