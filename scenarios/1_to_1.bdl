@@ -16,7 +16,7 @@ make_install(git = "https://github.com/erlio/vmq_mzbench.git",
 pool(size = 1000,
      worker_type = mqtt_worker,
      worker_start = poisson(100 rps)):
-         
+
             connect([t(host, "127.0.0.1"),
                     t(port,1883),
                     t(client,fixed_client_id("pool1", worker_id())),
@@ -24,10 +24,10 @@ pool(size = 1000,
                     t(keepalive_interval,60),
                     t(proto_version,4), t(reconnect_timeout,10)
                     ])
-            set_signal(pool1, 1)
-            wait_signal(pool1, 1000)
             wait(10 sec)
             subscribe_to_self("prefix/clients/", 0)
+            set_signal(pool1, 1)
+            wait_signal(pool1, 1000)
             loop(time = 5 min, rate = 1 rps):
                 publish_to_self("prefix/clients/", random_binary(150), 0)
             disconnect()
