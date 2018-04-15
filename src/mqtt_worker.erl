@@ -16,7 +16,11 @@
     publish_to_self/5,
     client/2,
     worker_id/2,
-    fixed_client_id/4]).
+    fixed_client_id/4,
+    load_client_cert/3,
+    load_client_key/3,
+    load_cas/3,
+    get_cert_bin/1]).
 
 % gen_mqtt stats callback
 -export([stats/2]).
@@ -35,6 +39,8 @@
     on_subscribe/2,
     on_unsubscribe/2,
     on_publish/3]).
+
+-include_lib("public_key/include/public_key.hrl").
 
 -record(state, {mqtt_fsm, client}).
 
@@ -206,8 +212,28 @@ worker_id(State, Meta) ->
     {ID, State}.
 
 fixed_client_id(State, _Meta, Name, Id) -> {[Name, "-", integer_to_list(Id)], State}.
+
 random_client_id(State, _Meta, N) ->
     {randlist(N) ++ pid_to_list(self()), State}.
+
+load_client_cert(State, _Meta, CertBin) ->
+    Pems = public_key:pem_decode(CertBin),
+    {value, Certificate} = lists:keysearch('Certificate', 1, Pems),
+    PKey = get_cert_bin(Certificate),
+    {PKey, State}.
+
+load_client_key(State, _Meta, KeyBin) ->
+    [{'RSAPrivateKey', KB, _}] = public_key:pem_decode(KeyBin),
+    {{'RSAPrivateKey', KB}, State}.
+
+load_cas(State, _Meta, CABin) ->
+    CAList = public_key:pem_decode(CABin),
+    CL = [get_cert_bin(Key) || Key <- CAList],
+    {CL, State}.
+
+get_cert_bin(Cert) ->
+    {'Certificate', CertBin, _} = Cert,
+    CertBin.
 
 %% ------------------------------------------------
 %% Gen_MQTT Info Callbacks
