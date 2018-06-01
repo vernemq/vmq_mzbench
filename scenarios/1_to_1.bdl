@@ -17,13 +17,14 @@ pool(size = 1000,
      worker_type = mqtt_worker,
      worker_start = poisson(100 rps)):
 
-            connect([t(host, "127.0.0.1"),
-                    t(port,1883),
-                    t(client,fixed_client_id("pool1", worker_id())),
-                    t(clean_session,true),
-                    t(keepalive_interval,60),
-                    t(proto_version,4), t(reconnect_timeout,10)
-                    ])
+            connect(host = "127.0.0.1",
+                    port = 1883,
+                    client = fixed_client_id("pool1", worker_id()),
+                    clean_session = true,
+                    keepalive_interval = 60,
+                    proto_version = 4,
+                    reconnect_timeout = 10
+                    )
             wait(10 sec)
             subscribe_to_self("prefix/clients/", 0)
             set_signal(pool1, 1)
