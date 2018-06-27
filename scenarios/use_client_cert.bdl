@@ -13,17 +13,17 @@ pool(size = 100,
      worker_type = mqtt_worker,
      worker_start = poisson(100 rps)):
 
-            connect([t(host, "127.0.0.1"),
-                    t(port, 8883),
-                    t(client,fixed_client_id("pool1", worker_id())),
-                    t(clean_session,true),
-                    t(keepalive_interval,60),
-                    t(proto_version,4), t(reconnect_timeout,15), 
-                    t(transport, t(ssl, [t(reuse_sessions, false),
+            connect(host = "127.0.0.1",
+                    port = 8883,
+                    client = fixed_client_id("pool1", worker_id()),
+                    clean_session = true,
+                    keepalive_interval = 60,
+                    proto_version = 4, reconnect_timeout = 15,
+                    transport = t(ssl, [t(reuse_sessions, false),
                                         t(key, load_client_key(resource(keyfile))),
                                         t(cacerts, load_cas(resource(cacertsfile))),
-                                        t(cert,load_client_cert(resource(certfile)))]))
-                    ])
+                                        t(cert,load_client_cert(resource(certfile)))])
+                    )
             wait(10 sec)
             subscribe_to_self("test/topic/", 0)
             set_signal(connect1, 1)
