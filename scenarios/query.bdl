@@ -1,0 +1,63 @@
+#!benchDL
+
+#######
+# Query Scenario:
+# This scenario simulates client server communication pattern.
+# 1k servers subscribes for private topic and replies for incoming
+# requests.
+# 1 client sends request to one random server each time with 500 rps
+# frequency.
+# Request is sent with QOS2, response is delivered with QOS1.
+# Each MQTT client binds to random IP from local network
+# interface of choice.
+# Overall Msg rate: 1k msg/s
+# Message Size: 150 random bytes
+# Runtime: 5 min
+#######
+
+make_install(git = "https://github.com/erlio/vmq_mzbench.git", branch = "master")
+
+pool(size = 1, worker_type = mqtt_worker):
+    connect(
+        host = "127.0.0.1",
+        port = 1883,
+        transport = t(gen_tcp, [t(ip, random_client_ip("eth"))]),
+        client = fixed_client_id("server", worker_id()),
+        clean_session = true,
+        keepalive_interval = 60,
+        proto_version = 4,
+        reconnect_timeout = 30
+    )
+    wait(4 sec)
+    subscribe("prefix/clients/#", 1)
+    loop(time = 5 min, rate = 500 rps, poisson = true):
+        publish_to_one(
+            "prefix/servers/",
+            fixed_client_id("client", random_number(1, 1000)),
+            random_binary(150),
+            2
+        )
+    wait(4 sec)
+    set_signal(done, 1)
+    wait(10 sec)
+    disconnect()
+
+pool(size = 1000, worker_type = mqtt_worker, worker_start = poisson(1000 rps)):
+    connect(
+        host = "127.0.0.1",
+        port = 1883,
+        transport = t(gen_tcp, [t(ip, random_client_ip("eth"))]),
+        client = fixed_client_id("client", worker_id()),
+        clean_session = true,
+        keepalive_interval = 60,
+        proto_version = 4,
+        reconnect_timeout = 30
+    )
+    wait(4 sec)
+    subscribe_to_self("prefix/servers/", 2)
+    forward("prefix/clients/", 1)
+    wait(5 min)
+    wait_signal(done, 1)
+    wait(10 sec)
+    idle()
+    disconnect()
