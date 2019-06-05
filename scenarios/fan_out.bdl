@@ -15,7 +15,7 @@ make_install(git = "https://github.com/erlio/vmq_mzbench.git",
 
 pool(size = 1000,
      worker_type = mqtt_worker,
-     woker_start = poisson(1000 rps)):
+     worker_start = poisson(1000 rps)):
 
             connect(host = "127.0.0.1",
                     port = 1883,
