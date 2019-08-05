@@ -1,7 +1,7 @@
 # vmq_mzbench
 An MQTT loadtest and usage scenario tool
 
-vmq_mzbench acts as a benchmark worker for Satori's MZBench. (https://github.com/satori-com/mzbench)
+vmq_mzbench acts as a benchmark worker for Satori's MZBench. (https://github.com/mzbench/mzbench)
 
 To use vmq_mzbench, you have to do 2 things: 
 
