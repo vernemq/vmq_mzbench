@@ -359,7 +359,7 @@ stats({pubrec_in, MsgId}, State) ->
     T2 = os:timestamp(),
     T1 = maps:get({outgoing, MsgId}, State),
     mzb_metrics:notify({"mqtt.publisher.qos2.pub_out_to_pubrec_in.latency", histogram}, positive(timer:now_diff(T2, T1))),
-    mzb_metrics:notify({"mqtt.publisher.qos2.pubrec.in.total"}, 1),
+    mzb_metrics:notify({"mqtt.publisher.qos2.pubrec.in.total", counter}, 1),
     mzb_metrics:notify({"mqtt.publisher.qos2.pubrec.waiting", counter}, -1),
     NewState = maps:update({outgoing, MsgId}, T2, State),
     NewState;
