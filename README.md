@@ -6,7 +6,7 @@ vmq_mzbench acts as a benchmark worker for Satori's MZBench. (https://github.com
 To use vmq_mzbench, you have to do 2 things: 
 
 1. Install and start MZBench
-2. Develop scenario files and feed them to MZBench (http://satori-com.github.io/mzbench/scenarios/spec/)
+2. Develop scenario files and feed them to MZBench (http://mzbench.github.io/mzbench/scenarios/spec/)
 
 The scenario file will fetch vmq_mzbench.
 
