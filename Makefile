@@ -14,8 +14,8 @@ get-deps:
 
 generate_tgz: get-deps compile
 	mkdir -p pkgroot/${PKG_NAME}/ebin
-	cp ebin/* pkgroot/${PKG_NAME}/ebin/
-	if [ -d "deps" ]; then cp -Rf deps pkgroot/${PKG_NAME}; fi
+	cp _build/default/deps/${PKG_NAME}/ebin/* pkgroot/${PKG_NAME}/ebin/
+	if [ -d "_build/default/deps" ]; then cp -Rf _build/default/deps pkgroot/${PKG_NAME}; fi
 	if [ -f "sys.config" ]; then cp sys.config pkgroot/${PKG_NAME}/; fi
 	cd pkgroot && tar czf ../${PKG_NAME}.tgz ./${PKG_NAME} && cd ..
 	rm -rf pkgroot
