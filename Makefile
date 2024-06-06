@@ -1,6 +1,6 @@
 .PHONY: all compile get-deps generate_tgz clean pkgroot
 
-REBAR := $(abspath $(shell which ./rebar || which rebar))
+REBAR := $(abspath $(shell which ./rebar3 || which rebar3))
 
 PKG_NAME = mqtt_worker
 
