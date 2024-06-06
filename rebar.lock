@@ -1,12 +1,16 @@
-[{<<"goldrush">>,
-  {git,"git://github.com/DeadZen/goldrush.git",
-       {ref,"212299233c7e7eb63a97be2777e1c05ebaa58dbe"}},
-  1},
+{"1.2.0",
+[{<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
  {<<"lager">>,
-  {git,"git://github.com/basho/lager.git",
-       {ref,"1c42c3bffbab49b0f06c9a916b00ca4911ae6a2f"}},
+  {git,"https://github.com/erlang-lager/lager.git",
+       {ref,"e6b31784e65b838a10d0a533f4b838da8029e402"}},
   0},
  {<<"vernemq_dev">>,
-  {git,"git://github.com/vernemq/vernemq_dev.git",
-       {ref,"9afa661feaf15f73e2a64cd81166cf335329882e"}},
-  0}].
+  {git,"https://github.com/vernemq/vernemq_dev.git",
+       {ref,"47daace526521114f8dc39ecee4db06497b0bdde"}},
+  0}]}.
+[
+{pkg_hash,[
+ {<<"goldrush">>, <<"F06E5D5F1277DA5C413E84D5A2924174182FB108DABB39D5EC548B27424CD106">>}]},
+{pkg_hash_ext,[
+ {<<"goldrush">>, <<"99CB4128CFFCB3227581E5D4D803D5413FA643F4EB96523F77D9E6937D994CEB">>}]}
+].
